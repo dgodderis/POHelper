@@ -3,7 +3,7 @@
     --secondary-color: #6c757d; /* A shade of grey */
     --background-color: #f8f9fa; /* Light grey */
     --text-color: #212529; /* Dark grey */
-    --header-color: #ffffff; /* White */
+    --header-color: #ffffff; /* Pure white */
     --card-header-color: #e9ecef;
 }
 
@@ -13,12 +13,12 @@ body {
 }
 
 .navbar {
-    background-color: var(--primary-color) !important;
+    background-color: var(--primary-color);
     padding: 0.5rem 1rem;
 }
 
 .navbar-brand {
-    color: var(--header-color) !important;
+    color: var(--header-color);
     display: flex;
     align-items: center;
 }

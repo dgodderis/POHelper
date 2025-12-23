@@ -2,7 +2,7 @@
 
 A simple tool to help Product Owners organize their work.
 
-## Setup
+## Installation
 
 1.  **Create a virtual environment:**
 
