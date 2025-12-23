@@ -1,5 +1,6 @@
 from typing import Optional
-from sqlalchemy import Column, Integer, String, Date
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Date, DateTime
 from database import Base
 
 class Task(Base):
@@ -13,6 +14,8 @@ class Task(Base):
         tags (Optional[str]): Tags associated with the task, stored as a comma-separated string for simplicity. Can be null.
         due_date (Optional[Date]): The date by which the task is due. Can be null.
         status (str): The current status of the task, defaults to "To Do".
+        created_at (datetime): When the task was created.
+        order_index (Optional[int]): Manual ordering position within the column.
     """
     __tablename__ = "tasks"
 
@@ -22,3 +25,5 @@ class Task(Base):
     tags: Optional[str] = Column(String)
     due_date: Optional[Date] = Column(Date)
     status: str = Column(String, default="To Do")
+    created_at: datetime = Column(DateTime, default=datetime.utcnow)
+    order_index: Optional[int] = Column(Integer)

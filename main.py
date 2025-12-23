@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import List # Added for Python 3.8 compatibility
 
@@ -9,6 +10,18 @@ import crud, models, schemas
 from database import SessionLocal, engine
 
 models.Base.metadata.create_all(bind=engine)
+
+def ensure_task_columns():
+    with engine.connect() as conn:
+        result = conn.execute(text("PRAGMA table_info(tasks)")).fetchall()
+        columns = {row[1] for row in result}
+        if "created_at" not in columns:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN created_at DATETIME"))
+        if "order_index" not in columns:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN order_index INTEGER"))
+        conn.commit()
+
+ensure_task_columns()
 
 app = FastAPI()
 
@@ -47,6 +60,13 @@ def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
     tasks = crud.get_tasks(db, skip=skip, limit=limit)
     return tasks
+
+@app.put("/tasks/reorder", response_model=List[schemas.Task])
+def reorder_tasks(task_reorder: schemas.TaskReorder, db: Session = Depends(get_db)):
+    """
+    Reorders tasks within a column based on the provided ordered list.
+    """
+    return crud.reorder_tasks(db, status=task_reorder.status, ordered_ids=task_reorder.ordered_ids)
 
 @app.put("/tasks/{task_id}", response_model=schemas.Task)
 def update_task_status(task_id: int, task_update: schemas.TaskStatusUpdate, db: Session = Depends(get_db)):

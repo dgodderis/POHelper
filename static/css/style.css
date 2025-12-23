@@ -1,0 +1,150 @@
+:root {
+    --primary-color: #28a745; /* A vibrant green */
+    --secondary-color: #6c757d; /* A shade of grey */
+    --background-color: #f8f9fa; /* Light grey */
+    --text-color: #212529; /* Dark grey */
+    --header-color: #ffffff; /* Pure white */
+    --card-header-color: #d4edda; /* Light green */
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+.navbar {
+    background-color: var(--primary-color);
+    padding: 5px 1rem;
+}
+
+.navbar-brand {
+    color: var(--header-color);
+    display: flex;
+    align-items: center;
+}
+
+.navbar-brand img {
+    height: 40px; /* Increased logo size */
+    margin-right: 10px;
+}
+
+.card-header {
+    background-color: var(--card-header-color);
+    padding: 0.25rem 0.5rem;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: nowrap;
+    min-height: 2.4rem;
+}
+
+.task-sort {
+    max-width: 9.5rem;
+    white-space: nowrap;
+}
+
+.card-header .btn,
+.card-header .task-sort {
+    white-space: nowrap;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.task-card {
+    cursor: grab;
+}
+
+.task-card:active {
+    cursor: grabbing;
+}
+
+.task-card.dragging {
+    opacity: 0.5;
+}
+
+#todo-cards,
+#inprogress-cards,
+#done-cards {
+    min-height: 80px;
+}
+
+.task-card .card-body {
+    min-height: 0;
+    padding: 0.2rem 0.45rem;
+}
+
+.task-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.35rem;
+}
+
+.task-card .card-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 0.15rem;
+}
+
+.task-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+    justify-content: flex-end;
+}
+
+.task-tag {
+    align-self: flex-start;
+    background-color: #e2e8f0;
+    border-radius: 999px;
+    color: #1f2937;
+    font-size: 0.6rem;
+    font-weight: 600;
+    line-height: 1.1;
+    padding: 0.1rem 0.4rem;
+    text-transform: uppercase;
+}
+
+.task-tag-empty {
+    opacity: 0.7;
+}
+
+.task-tag.tag-vvi {
+    background-color: #fecaca;
+    color: #7f1d1d;
+}
+
+.task-tag.tag-boi {
+    background-color: #bbf7d0;
+    color: #14532d;
+}
+}
+
+.task-card .card-text {
+    font-size: 0.75rem;
+    line-height: 1.1;
+    margin-bottom: 0.15rem;
+}
+
+.task-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem;
+}
+
+.task-card-due {
+    font-size: 0.7rem;
+    margin: 0;
+}
+
+.task-card .btn {
+    padding: 0.1rem 0.3rem;
+    font-size: 0.65rem;
+}
+
+.card-body.drag-over {
+    background-color: #f0f0f0;
+}
