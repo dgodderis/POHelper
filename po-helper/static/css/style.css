@@ -1,0 +1,58 @@
+:root {
+    --primary-color: #007bff; /* A shade of blue */
+    --secondary-color: #6c757d; /* A shade of grey */
+    --background-color: #f8f9fa; /* Light grey */
+    --text-color: #212529; /* Dark grey */
+    --header-color: #ffffff; /* Pure white */
+    --card-header-color: #e9ecef;
+}
+
+body {
+    background-color: var(--background-color);
+    color: var(--text-color);
+}
+
+.navbar {
+    background-color: var(--primary-color);
+    padding: 0.5rem 1rem;
+}
+
+.navbar-brand {
+    color: var(--header-color);
+    display: flex;
+    align-items: center;
+}
+
+.navbar-brand img {
+    height: 20px;
+    margin-right: 10px;
+}
+
+.card-header {
+    background-color: var(--card-header-color);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.task-card {
+    cursor: grab;
+}
+
+.task-card:active {
+    cursor: grabbing;
+}
+
+.task-card.dragging {
+    opacity: 0.5;
+}
+
+.card-body {
+    min-height: 100px;
+}
+
+.card-body.drag-over {
+    background-color: #f0f0f0;
+}
