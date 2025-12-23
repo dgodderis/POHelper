@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict
-from datetime import date
-from typing import Optional
+from datetime import date, datetime
+from typing import Optional, List
 from enum import Enum
 
 from enum import Enum
@@ -22,6 +22,8 @@ class TaskBase(BaseModel):
     tags: Optional[str] = None
     due_date: Optional[date] = None
     status: TaskStatus
+    created_at: Optional[datetime] = None
+    order_index: Optional[int] = None
 
 class TaskCreate(TaskBase):
     """
@@ -34,6 +36,13 @@ class TaskStatusUpdate(BaseModel):
     Pydantic model for updating only the status of a task.
     """
     status: TaskStatus
+
+class TaskReorder(BaseModel):
+    """
+    Pydantic model for reordering tasks within a column.
+    """
+    status: TaskStatus
+    ordered_ids: List[int]
 
 class Task(TaskBase):
     """
