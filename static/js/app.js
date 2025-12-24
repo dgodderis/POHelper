@@ -712,8 +712,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const destinationColumn = taskColumns[newStatus];
-            if (destinationColumn && sortState[newStatus] === 'manual') {
-                destinationColumn.appendChild(taskCard);
+            if (destinationColumn && sortState[newStatus] === 'manual' && taskCard) {
+                if (!destinationColumn.contains(taskCard)) {
+                    destinationColumn.appendChild(taskCard);
+                }
             }
             if (taskCard) {
                 taskCard.setAttribute('data-task-status', newStatus);
