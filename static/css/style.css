@@ -28,6 +28,40 @@ body {
     margin-right: 10px;
 }
 
+.filter-card-body {
+    padding: 0.75rem 0.9rem;
+}
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+}
+
+.filter-group {
+    flex: 1 1 220px;
+    min-width: 200px;
+}
+
+.filter-group-actions {
+    flex: 0 0 160px;
+    min-width: 140px;
+}
+
+.filter-status {
+    font-size: 0.7rem;
+    color: var(--secondary-color);
+    margin-top: 0.25rem;
+}
+
+.filter-dropdown {
+    width: 320px;
+    padding: 0;
+    border-color: #e1e5ea;
+    box-shadow: 0 6px 16px rgba(33, 37, 41, 0.12);
+}
+
 .card-header {
     background-color: var(--card-header-color);
     padding: 0.25rem 0.5rem;
@@ -134,6 +168,12 @@ body {
     gap: 0.35rem;
 }
 
+.task-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
 .task-card-due {
     font-size: 0.7rem;
     margin: 0;
@@ -146,4 +186,25 @@ body {
 
 .card-body.drag-over {
     background-color: #f0f0f0;
+}
+
+.tag-picker {
+    margin-top: 0.25rem;
+}
+
+.tag-picker .form-text {
+    font-size: 0.7rem;
+    margin-top: 0.25rem;
+}
+
+@media (max-width: 768px) {
+    .filter-group,
+    .filter-group-actions {
+        flex: 1 1 100%;
+        min-width: 100%;
+    }
+
+    .filter-dropdown {
+        width: 100%;
+    }
 }

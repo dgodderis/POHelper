@@ -10,6 +10,7 @@ A small FastAPI app that gives Product Owners a lightweight task board with a dr
 - Delete tasks from the card footer
 - Tags display as small badges (derived from a comma-separated tag string)
 - Due dates are shown on each card
+- Filter tasks by keyword or tags
 
 ## Tech stack
 
@@ -62,6 +63,7 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
 - Drag and drop sends `PUT /tasks/{id}` with the new status.
 - Delete uses `DELETE /tasks/{id}` and refreshes the board.
 - Tags are split on commas, trimmed, and styled with slugged class names.
+- Filters match a single input against title, description, or tags.
 
 ## Installation
 

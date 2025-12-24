@@ -14,6 +14,28 @@
                 <img src="/static/images/cm.png" alt="PO Helper Logo">
                 PO Helper
             </a>
+            <div class="dropdown">
+                <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                    Filters
+                </button>
+                <div class="dropdown-menu dropdown-menu-end filter-dropdown">
+                    <div class="filter-card-body">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label for="filter_input" class="form-label">Search</label>
+                                <input type="text" class="form-control" id="filter_input" placeholder="Keyword or tag">
+                                <div class="form-text">Matches title, description, or tags.</div>
+                            </div>
+                            <div class="filter-group filter-group-actions">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" id="clear_filters">
+                                    Clear filters
+                                </button>
+                                <div class="filter-status" id="filter_status" aria-live="polite"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </nav>
 
@@ -105,6 +127,15 @@
                         <div class="mb-3">
                             <label for="quick_tags" class="form-label">Tags</label>
                             <input type="text" class="form-control" id="quick_tags">
+                            <div class="tag-picker" data-tag-input="quick_tags">
+                                <div class="input-group input-group-sm tag-picker-group">
+                                    <select class="form-select tag-picker-select" aria-label="Select saved tag">
+                                        <option value="">Select saved tag</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-secondary tag-picker-add">Add</button>
+                                </div>
+                                <div class="form-text">Use commas to add multiple tags.</div>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm">Add Task</button>
                     </form>
@@ -134,12 +165,72 @@
                         <div class="mb-3">
                             <label for="tags" class="form-label">Tags</label>
                             <input type="text" class="form-control" id="tags">
+                            <div class="tag-picker" data-tag-input="tags">
+                                <div class="input-group input-group-sm tag-picker-group">
+                                    <select class="form-select tag-picker-select" aria-label="Select saved tag">
+                                        <option value="">Select saved tag</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-secondary tag-picker-add">Add</button>
+                                </div>
+                                <div class="form-text">Use commas to add multiple tags.</div>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="due_date" class="form-label">Due Date</label>
                             <input type="date" class="form-control" id="due_date">
                         </div>
                         <button type="submit" class="btn btn-primary">Save Task</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Task Modal -->
+    <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTaskModalLabel">Edit Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editTaskForm">
+                        <input type="hidden" id="edit_task_id">
+                        <div class="mb-3">
+                            <label for="edit_title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="edit_title" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_description" class="form-label">Description</label>
+                            <textarea class="form-control" id="edit_description"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_tags" class="form-label">Tags</label>
+                            <input type="text" class="form-control" id="edit_tags">
+                            <div class="tag-picker" data-tag-input="edit_tags">
+                                <div class="input-group input-group-sm tag-picker-group">
+                                    <select class="form-select tag-picker-select" aria-label="Select saved tag">
+                                        <option value="">Select saved tag</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-secondary tag-picker-add">Add</button>
+                                </div>
+                                <div class="form-text">Use commas to add multiple tags.</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_due_date" class="form-label">Due Date</label>
+                            <input type="date" class="form-control" id="edit_due_date">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit_status" class="form-label">Status</label>
+                            <select class="form-select" id="edit_status">
+                                <option value="To Do">To Do</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Done">Done</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
                     </form>
                 </div>
             </div>
