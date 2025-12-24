@@ -5,6 +5,23 @@ from sqlalchemy.orm import Session
 import models, schemas
 from schemas import TaskStatus
 
+def _parse_tags(tags_value: str) -> List[str]:
+    if not tags_value:
+        return []
+    return [tag.strip() for tag in tags_value.split(',') if tag.strip()]
+
+def _ensure_tags(db: Session, tags_value: str) -> None:
+    tags = _parse_tags(tags_value)
+    if not tags:
+        return
+    lowered = [tag.lower() for tag in tags]
+    existing_tags = db.query(models.Tag.name).filter(func.lower(models.Tag.name).in_(lowered)).all()
+    existing_lookup = {name.lower() for (name,) in existing_tags}
+    for tag in tags:
+        if tag.lower() not in existing_lookup:
+            db.add(models.Tag(name=tag))
+            existing_lookup.add(tag.lower())
+
 def _get_next_order_index(db: Session, status_value: str) -> int:
     max_index = db.query(func.max(models.Task.order_index)).filter(models.Task.status == status_value).scalar()
     return (max_index or 0) + 1
@@ -24,6 +41,7 @@ def create_task(db: Session, task: schemas.TaskCreate):
     task_data["status"] = status_value
     task_data["created_at"] = datetime.utcnow()
     task_data["order_index"] = _get_next_order_index(db, status_value)
+    _ensure_tags(db, task_data.get("tags"))
     db_task = models.Task(**task_data)
     db.add(db_task)
     db.commit()
@@ -42,6 +60,34 @@ def update_task_status(db: Session, task_id: int, status: schemas.TaskStatus):
             db_task.order_index = _get_next_order_index(db, new_status)
         db.commit()
         db.refresh(db_task)
+    return db_task
+
+def update_task(db: Session, task_id: int, task_update: schemas.TaskUpdate):
+    """
+    Updates fields on an existing task in the database.
+    """
+    db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not db_task:
+        return None
+
+    update_data = task_update.model_dump(exclude_unset=True)
+    if "status" in update_data:
+        status_value = update_data["status"]
+        if status_value is not None:
+            status_value = status_value.value if hasattr(status_value, "value") else status_value
+            if db_task.status != status_value:
+                db_task.status = status_value
+                db_task.order_index = _get_next_order_index(db, status_value)
+        update_data.pop("status")
+
+    if "tags" in update_data:
+        _ensure_tags(db, update_data.get("tags"))
+
+    for field, value in update_data.items():
+        setattr(db_task, field, value)
+
+    db.commit()
+    db.refresh(db_task)
     return db_task
 
 def reorder_tasks(db: Session, status: schemas.TaskStatus, ordered_ids: List[int]):
@@ -67,3 +113,24 @@ def delete_task(db: Session, task_id: int):
         db.delete(db_task)
         db.commit()
     return db_task
+
+def get_tags(db: Session) -> List[str]:
+    """
+    Retrieves saved tags for suggestions.
+    """
+    tags = db.query(models.Tag).all()
+    tag_names = {tag.name for tag in tags}
+    tag_lookup = {name.lower() for name in tag_names}
+    task_tags = db.query(models.Task.tags).filter(models.Task.tags.isnot(None)).all()
+    added = False
+    for (tags_value,) in task_tags:
+        for tag in _parse_tags(tags_value):
+            tag_lower = tag.lower()
+            if tag_lower not in tag_lookup:
+                db.add(models.Tag(name=tag))
+                tag_names.add(tag)
+                tag_lookup.add(tag_lower)
+                added = True
+    if added:
+        db.commit()
+    return sorted(tag_names, key=lambda name: name.lower())

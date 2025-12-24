@@ -31,11 +31,15 @@ class TaskCreate(TaskBase):
     """
     pass
 
-class TaskStatusUpdate(BaseModel):
+class TaskUpdate(BaseModel):
     """
-    Pydantic model for updating only the status of a task.
+    Pydantic model for updating fields on an existing task.
     """
-    status: TaskStatus
+    title: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[str] = None
+    due_date: Optional[date] = None
+    status: Optional[TaskStatus] = None
 
 class TaskReorder(BaseModel):
     """

@@ -27,3 +27,12 @@ class Task(Base):
     status: str = Column(String, default="To Do")
     created_at: datetime = Column(DateTime, default=datetime.utcnow)
     order_index: Optional[int] = Column(Integer)
+
+class Tag(Base):
+    """
+    SQLAlchemy model for a stored tag.
+    """
+    __tablename__ = "tags"
+
+    id: int = Column(Integer, primary_key=True, index=True)
+    name: str = Column(String, unique=True, index=True)
