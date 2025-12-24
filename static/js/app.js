@@ -1,3 +1,83 @@
+const normalizeTagClass = (tag) => {
+    const normalized = tag.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return normalized ? `tag-${normalized}` : '';
+};
+
+const parseTagsValue = (value) => {
+    if (!value) {
+        return [];
+    }
+    return value
+        .split(',')
+        .map(tag => tag.trim())
+        .filter(Boolean);
+};
+
+const parseDateValue = (value) => {
+    if (!value) {
+        return null;
+    }
+    const time = Date.parse(value);
+    return Number.isNaN(time) ? null : time;
+};
+
+const compareNullableNumbers = (aValue, bValue, direction) => {
+    if (aValue == null && bValue == null) {
+        return 0;
+    }
+    if (aValue == null) {
+        return 1;
+    }
+    if (bValue == null) {
+        return -1;
+    }
+    return direction === 'asc' ? aValue - bValue : bValue - aValue;
+};
+
+const compareNullableStrings = (aValue, bValue, direction) => {
+    const aEmpty = !aValue;
+    const bEmpty = !bValue;
+    if (aEmpty && bEmpty) {
+        return 0;
+    }
+    if (aEmpty) {
+        return 1;
+    }
+    if (bEmpty) {
+        return -1;
+    }
+    return direction === 'asc'
+        ? aValue.localeCompare(bValue)
+        : bValue.localeCompare(aValue);
+};
+
+const compareManualOrder = (a, b) => {
+    const aOrder = a.order_index ?? Number.MAX_SAFE_INTEGER;
+    const bOrder = b.order_index ?? Number.MAX_SAFE_INTEGER;
+    if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+    }
+    const aCreated = parseDateValue(a.created_at);
+    const bCreated = parseDateValue(b.created_at);
+    const createdCompare = compareNullableNumbers(aCreated, bCreated, 'asc');
+    if (createdCompare !== 0) {
+        return createdCompare;
+    }
+    return (a.id || 0) - (b.id || 0);
+};
+
+if (typeof window !== 'undefined') {
+    // Expose pure helpers for unit tests.
+    window.__poHelperTestHooks = {
+        normalizeTagClass,
+        parseTagsValue,
+        compareNullableNumbers,
+        compareNullableStrings,
+        compareManualOrder,
+        parseDateValue
+    };
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const taskColumns = {
         "To Do": document.getElementById('todo-cards'),
@@ -23,12 +103,23 @@ document.addEventListener('DOMContentLoaded', () => {
     const filterInput = document.getElementById('filter_input');
     const clearFiltersButton = document.getElementById('clear_filters');
     const filterStatus = document.getElementById('filter_status');
+    const archivedSection = document.getElementById('archived-section');
+    const archivedCards = document.getElementById('archived-cards');
+    const toggleArchiveButton = document.getElementById('toggle-archive');
+    const archivedCountBadge = document.getElementById('archived-count');
+    const columnCountBadges = {
+        "To Do": document.getElementById('todo-count'),
+        "In Progress": document.getElementById('inprogress-count'),
+        "Done": document.getElementById('done-count')
+    };
     let draggedTaskId = null;
     let draggedFromStatus = null;
     let currentTasks = [];
+    let archivedTasks = [];
     const sortState = {};
     let availableTags = [];
     const statusOrder = ["To Do", "In Progress", "Done"];
+    const ARCHIVE_AFTER_HOURS = 8;
     const filterState = {
         input: ''
     };
@@ -41,9 +132,39 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${year}-${month}-${day}`;
     };
 
-    const normalizeTagClass = (tag) => {
-        const normalized = tag.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-        return normalized ? `tag-${normalized}` : '';
+    const getStartOfToday = () => {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return today;
+    };
+
+    /**
+     * Parses a due date string into a local Date instance.
+     * @param {string} value - Date string, typically in YYYY-MM-DD format.
+     * @returns {Date|null} Local Date or null for invalid values.
+     */
+    const parseDueDate = (value) => {
+        if (!value) {
+            return null;
+        }
+        const isoDateMatch = /^\d{4}-\d{2}-\d{2}$/;
+        if (isoDateMatch.test(value)) {
+            const [year, month, day] = value.split('-').map(Number);
+            return new Date(year, month - 1, day);
+        }
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+    };
+
+    const isTaskOverdue = (task) => {
+        if (!task || !task.due_date || task.status === 'Done') {
+            return false;
+        }
+        const dueDate = parseDueDate(task.due_date);
+        if (!dueDate) {
+            return false;
+        }
+        return dueDate < getStartOfToday();
     };
 
     const addTagToInput = (input, tag) => {
@@ -59,16 +180,6 @@ document.addEventListener('DOMContentLoaded', () => {
             existingTags.push(tag);
         }
         input.value = existingTags.join(', ');
-    };
-
-    const parseTagsValue = (value) => {
-        if (!value) {
-            return [];
-        }
-        return value
-            .split(',')
-            .map(tag => tag.trim())
-            .filter(Boolean);
     };
 
     const refreshTagPickers = () => {
@@ -126,11 +237,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = (task.title || '').toLowerCase();
         const description = (task.description || '').toLowerCase();
         const taskTags = normalizeTokens(parseTagsValue(task.tags || ''));
+        const dueDateMatches = getDueDateMatchStrings(task.due_date);
         return tokens.every((token) => {
             if (title.includes(token) || description.includes(token)) {
                 return true;
             }
-            return taskTags.some(tag => tag.includes(token));
+            if (taskTags.some(tag => tag.includes(token))) {
+                return true;
+            }
+            return dueDateMatches.some(match => match.includes(token));
         });
     };
 
@@ -156,57 +271,51 @@ document.addEventListener('DOMContentLoaded', () => {
         updateFilterStatus();
     };
 
-    const parseDateValue = (value) => {
+    const getDueDateMatchStrings = (value) => {
         if (!value) {
+            return [];
+        }
+        const rawValue = String(value).toLowerCase();
+        const parsedDate = new Date(value);
+        const localValue = Number.isNaN(parsedDate.getTime())
+            ? ''
+            : parsedDate.toLocaleDateString().toLowerCase();
+        if (localValue && localValue !== rawValue) {
+            return [rawValue, localValue];
+        }
+        return [rawValue];
+    };
+
+    const formatDateTime = (value) => {
+        if (!value) {
+            return 'N/A';
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+        return date.toLocaleString();
+    };
+
+    const formatArchiveCountdown = (doneAtValue) => {
+        const doneAt = parseDateValue(doneAtValue);
+        if (!doneAt) {
             return null;
         }
-        const time = Date.parse(value);
-        return Number.isNaN(time) ? null : time;
-    };
-
-    const compareNullableNumbers = (aValue, bValue, direction) => {
-        if (aValue == null && bValue == null) {
-            return 0;
+        const archiveAt = doneAt + ARCHIVE_AFTER_HOURS * 60 * 60 * 1000;
+        const remainingMs = archiveAt - Date.now();
+        if (remainingMs <= 0) {
+            return null;
         }
-        if (aValue == null) {
-            return 1;
+        const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+        const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+        if (hours <= 0) {
+            return `${minutes}m`;
         }
-        if (bValue == null) {
-            return -1;
+        if (minutes === 0) {
+            return `${hours}h`;
         }
-        return direction === 'asc' ? aValue - bValue : bValue - aValue;
-    };
-
-    const compareNullableStrings = (aValue, bValue, direction) => {
-        const aEmpty = !aValue;
-        const bEmpty = !bValue;
-        if (aEmpty && bEmpty) {
-            return 0;
-        }
-        if (aEmpty) {
-            return 1;
-        }
-        if (bEmpty) {
-            return -1;
-        }
-        return direction === 'asc'
-            ? aValue.localeCompare(bValue)
-            : bValue.localeCompare(aValue);
-    };
-
-    const compareManualOrder = (a, b) => {
-        const aOrder = a.order_index ?? Number.MAX_SAFE_INTEGER;
-        const bOrder = b.order_index ?? Number.MAX_SAFE_INTEGER;
-        if (aOrder !== bOrder) {
-            return aOrder - bOrder;
-        }
-        const aCreated = parseDateValue(a.created_at);
-        const bCreated = parseDateValue(b.created_at);
-        const createdCompare = compareNullableNumbers(aCreated, bCreated, 'asc');
-        if (createdCompare !== 0) {
-            return createdCompare;
-        }
-        return (a.id || 0) - (b.id || 0);
+        return `${hours}h ${minutes}m`;
     };
 
     const getLogTimestamp = () => new Date().toISOString();
@@ -263,8 +372,28 @@ document.addEventListener('DOMContentLoaded', () => {
             currentTasks = tasks;
             renderTasks(getFilteredTasks());
             updateFilterStatus();
+            fetchArchivedTasks();
         } catch (error) {
             logError('There has been a problem with your fetch operation:', error);
+        }
+    };
+
+    const fetchArchivedTasks = async () => {
+        try {
+            const response = await fetch('/tasks/archived');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const tasks = await response.json();
+            archivedTasks = tasks;
+            if (archivedCountBadge) {
+                archivedCountBadge.textContent = archivedTasks.length;
+            }
+            if (archivedSection && !archivedSection.classList.contains('d-none')) {
+                renderArchivedTasks(archivedTasks);
+            }
+        } catch (error) {
+            logError('Failed to load archived tasks:', error);
         }
     };
 
@@ -291,14 +420,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        Object.entries(columnCountBadges).forEach(([status, badge]) => {
+            if (badge) {
+                badge.textContent = tasksByStatus[status]?.length ?? 0;
+            }
+        });
+
         Object.entries(taskColumns).forEach(([status, column]) => {
             if (!column) {
                 return;
             }
             const sortedTasks = sortTasksForStatus(tasksByStatus[status] || [], status);
             sortedTasks.forEach(task => {
+                const isOverdue = isTaskOverdue(task);
                 const taskCard = document.createElement('div');
-                taskCard.className = 'card task-card mb-2';
+                taskCard.className = `card task-card mb-2${task.urgent ? ' task-urgent' : ''}${isOverdue ? ' task-overdue' : ''}`;
                 taskCard.setAttribute('draggable', 'true');
                 taskCard.setAttribute('data-task-id', task.id);
                 taskCard.setAttribute('data-task-status', task.status);
@@ -346,10 +482,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const dueDateEl = document.createElement('div');
                 dueDateEl.className = 'task-card-due';
-                const smallDueDate = document.createElement('small');
-                smallDueDate.className = 'text-muted';
-                smallDueDate.textContent = `Due: ${task.due_date || 'N/A'}`;
-                dueDateEl.appendChild(smallDueDate);
+                const dueDateTag = document.createElement('span');
+                dueDateTag.className = 'task-tag task-due-tag';
+                dueDateTag.textContent = task.due_date ? `Due: ${task.due_date}` : 'No due date';
+                dueDateEl.appendChild(dueDateTag);
+
+                if (task.status === 'Done') {
+                    const archiveCountdown = formatArchiveCountdown(task.done_at);
+                    if (archiveCountdown) {
+                        const archiveNote = document.createElement('div');
+                        archiveNote.className = 'task-archive-note';
+                        archiveNote.textContent = `Archived in ${archiveCountdown}`;
+                        dueDateEl.appendChild(archiveNote);
+                    }
+                }
 
                 const deleteButton = document.createElement('button');
                 deleteButton.className = 'btn btn-sm btn-danger delete-task';
@@ -374,6 +520,86 @@ document.addEventListener('DOMContentLoaded', () => {
                 taskCard.appendChild(cardBody);
                 column.appendChild(taskCard);
             });
+        });
+    };
+
+    const renderArchivedTasks = (tasks) => {
+        if (!archivedCards) {
+            return;
+        }
+        archivedCards.innerHTML = '';
+        if (!tasks || tasks.length === 0) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'text-muted';
+            emptyState.textContent = 'No archived tasks yet.';
+            archivedCards.appendChild(emptyState);
+            return;
+        }
+
+        tasks.forEach(task => {
+            const taskCard = document.createElement('div');
+            taskCard.className = `card task-card archived-task mb-2${task.urgent ? ' task-urgent' : ''}`;
+
+            const cardBody = document.createElement('div');
+            cardBody.className = 'card-body';
+
+            const headerRow = document.createElement('div');
+            headerRow.className = 'task-card-header';
+
+            const titleEl = document.createElement('h5');
+            titleEl.className = 'card-title';
+            titleEl.textContent = task.title;
+
+            const tagsWrap = document.createElement('div');
+            tagsWrap.className = 'task-tags';
+
+            const rawTags = task.tags ? task.tags.split(',') : [];
+            const tagsList = rawTags.map(tag => tag.trim()).filter(Boolean);
+
+            if (tagsList.length === 0) {
+                const emptyBadge = document.createElement('span');
+                emptyBadge.className = 'task-tag task-tag-empty';
+                emptyBadge.textContent = 'None';
+                tagsWrap.appendChild(emptyBadge);
+            } else {
+                tagsList.forEach((tag) => {
+                    const tagBadge = document.createElement('span');
+                    const tagClass = normalizeTagClass(tag);
+                    tagBadge.className = `task-tag${tagClass ? ` ${tagClass}` : ''}`;
+                    tagBadge.textContent = tag;
+                    tagsWrap.appendChild(tagBadge);
+                });
+            }
+
+            headerRow.appendChild(titleEl);
+            headerRow.appendChild(tagsWrap);
+
+            const descriptionEl = document.createElement('p');
+            descriptionEl.className = 'card-text';
+            descriptionEl.textContent = task.description || '';
+
+            const footerRow = document.createElement('div');
+            footerRow.className = 'task-card-footer';
+
+            const dueDateEl = document.createElement('div');
+            dueDateEl.className = 'task-card-due';
+            const dueDateTag = document.createElement('span');
+            dueDateTag.className = 'task-tag task-due-tag';
+            dueDateTag.textContent = task.due_date ? `Due: ${task.due_date}` : 'No due date';
+            dueDateEl.appendChild(dueDateTag);
+
+            const archivedAt = document.createElement('div');
+            archivedAt.className = 'task-archive-note';
+            archivedAt.textContent = `Archived: ${formatDateTime(task.done_at)}`;
+
+            footerRow.appendChild(dueDateEl);
+            footerRow.appendChild(archivedAt);
+
+            cardBody.appendChild(headerRow);
+            cardBody.appendChild(descriptionEl);
+            cardBody.appendChild(footerRow);
+            taskCard.appendChild(cardBody);
+            archivedCards.appendChild(taskCard);
         });
     };
 
@@ -450,6 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const descriptionField = document.getElementById('edit_description');
         const tagsField = document.getElementById('edit_tags');
         const dueDateField = document.getElementById('edit_due_date');
+        const urgentField = document.getElementById('edit_urgent');
         const statusField = document.getElementById('edit_status');
 
         if (idField) {
@@ -466,6 +693,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (dueDateField) {
             dueDateField.value = task.due_date || '';
+        }
+        if (urgentField) {
+            urgentField.checked = Boolean(task.urgent);
         }
         if (statusField) {
             statusField.value = task.status || 'To Do';
@@ -484,13 +714,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const description = document.getElementById('description').value;
         const tags = document.getElementById('tags').value;
         const due_date = document.getElementById('due_date').value;
+        const urgent = document.getElementById('urgent').checked;
 
         const taskData = {
             title,
             description,
             tags,
             due_date: due_date || null,
-            status: 'To Do'
+            status: 'To Do',
+            urgent
         };
 
         createTask(taskData, newTaskForm, newTaskModal);
@@ -508,13 +740,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const tagsInput = document.getElementById('quick_tags');
         const tagsValue = tagsInput ? tagsInput.value.trim() : '';
+        const urgentInput = document.getElementById('quick_urgent');
+        const urgent = urgentInput ? urgentInput.checked : false;
 
         const taskData = {
             title,
             description: null,
             tags: tagsValue || null,
             due_date: getTodayDate(),
-            status: 'To Do'
+            status: 'To Do',
+            urgent
         };
 
         createTask(taskData, quickTaskForm, quickTaskModal);
@@ -543,6 +778,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 filterInput.value = '';
             }
             updateFiltersFromInputs();
+        });
+    }
+
+    if (toggleArchiveButton && archivedSection) {
+        toggleArchiveButton.addEventListener('click', () => {
+            const isHidden = archivedSection.classList.contains('d-none');
+            archivedSection.classList.toggle('d-none', !isHidden);
+            toggleArchiveButton.classList.toggle('active', isHidden);
+            toggleArchiveButton.setAttribute('aria-pressed', String(isHidden));
+            if (isHidden) {
+                fetchArchivedTasks();
+                renderArchivedTasks(archivedTasks);
+            }
         });
     }
 
@@ -581,6 +829,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const descriptionValue = document.getElementById('edit_description').value.trim();
             const tagsValue = document.getElementById('edit_tags').value.trim();
             const dueDateValue = document.getElementById('edit_due_date').value;
+            const urgentValue = document.getElementById('edit_urgent').checked;
             const statusValue = document.getElementById('edit_status').value;
 
             const taskData = {
@@ -588,7 +837,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: descriptionValue || null,
                 tags: tagsValue || null,
                 due_date: dueDateValue || null,
-                status: statusValue
+                status: statusValue,
+                urgent: urgentValue
             };
 
             updateTask(taskId, taskData, editTaskForm, editTaskModal);
@@ -863,6 +1113,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     });
+
+    const refreshCountdowns = () => {
+        renderTasks(getFilteredTasks());
+        updateFilterStatus();
+        if (archivedSection && !archivedSection.classList.contains('d-none')) {
+            renderArchivedTasks(archivedTasks);
+        }
+    };
+
+    setInterval(refreshCountdowns, 60000);
+    setInterval(fetchTasks, 300000);
 
     fetchTags();
     fetchTasks();

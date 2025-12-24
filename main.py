@@ -19,6 +19,17 @@ def ensure_task_columns():
             conn.execute(text("ALTER TABLE tasks ADD COLUMN created_at DATETIME"))
         if "order_index" not in columns:
             conn.execute(text("ALTER TABLE tasks ADD COLUMN order_index INTEGER"))
+        if "done_at" not in columns:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN done_at DATETIME"))
+            conn.execute(
+                text(
+                    "UPDATE tasks SET done_at = created_at "
+                    "WHERE status = 'Done' AND done_at IS NULL AND created_at IS NOT NULL"
+                )
+            )
+        if "urgent" not in columns:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN urgent BOOLEAN"))
+            conn.execute(text("UPDATE tasks SET urgent = 0 WHERE urgent IS NULL"))
         conn.commit()
 
 ensure_task_columns()
@@ -60,6 +71,13 @@ def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """
     tasks = crud.get_tasks(db, skip=skip, limit=limit)
     return tasks
+
+@app.get("/tasks/archived", response_model=List[schemas.Task])
+def read_archived_tasks(skip: int = 0, limit: int = 200, db: Session = Depends(get_db)):
+    """
+    Retrieves a list of archived tasks from the database.
+    """
+    return crud.get_archived_tasks(db, skip=skip, limit=limit)
 
 @app.get("/tags/", response_model=List[str])
 def read_tags(db: Session = Depends(get_db)):

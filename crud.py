@@ -1,9 +1,14 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List
-from sqlalchemy import func
+from sqlalchemy import func, and_, or_
 from sqlalchemy.orm import Session
 import models, schemas
 from schemas import TaskStatus
+
+ARCHIVE_AFTER_HOURS = 8
+
+def _archive_cutoff() -> datetime:
+    return datetime.utcnow() - timedelta(hours=ARCHIVE_AFTER_HOURS)
 
 def _parse_tags(tags_value: str) -> List[str]:
     if not tags_value:
@@ -30,7 +35,40 @@ def get_tasks(db: Session, skip: int = 0, limit: int = 100):
     """
     Retrieves a list of tasks from the database with pagination.
     """
-    return db.query(models.Task).offset(skip).limit(limit).all()
+    cutoff = _archive_cutoff()
+    return (
+        db.query(models.Task)
+        .filter(
+            or_(
+                models.Task.status != TaskStatus.done.value,
+                models.Task.done_at.is_(None),
+                models.Task.done_at > cutoff,
+            )
+        )
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
+def get_archived_tasks(db: Session, skip: int = 0, limit: int = 200):
+    """
+    Retrieves tasks archived by the 8-hour rule.
+    """
+    cutoff = _archive_cutoff()
+    return (
+        db.query(models.Task)
+        .filter(
+            and_(
+                models.Task.status == TaskStatus.done.value,
+                models.Task.done_at.isnot(None),
+                models.Task.done_at <= cutoff,
+            )
+        )
+        .order_by(models.Task.done_at.desc())
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
 
 def create_task(db: Session, task: schemas.TaskCreate):
     """
@@ -39,8 +77,10 @@ def create_task(db: Session, task: schemas.TaskCreate):
     task_data = task.model_dump(exclude={"created_at", "order_index"})
     status_value = task.status.value
     task_data["status"] = status_value
-    task_data["created_at"] = datetime.utcnow()
+    now = datetime.utcnow()
+    task_data["created_at"] = now
     task_data["order_index"] = _get_next_order_index(db, status_value)
+    task_data["done_at"] = now if status_value == TaskStatus.done.value else None
     _ensure_tags(db, task_data.get("tags"))
     db_task = models.Task(**task_data)
     db.add(db_task)
@@ -58,6 +98,10 @@ def update_task_status(db: Session, task_id: int, status: schemas.TaskStatus):
         if db_task.status != new_status:
             db_task.status = new_status
             db_task.order_index = _get_next_order_index(db, new_status)
+            if new_status == TaskStatus.done.value:
+                db_task.done_at = datetime.utcnow()
+            else:
+                db_task.done_at = None
         db.commit()
         db.refresh(db_task)
     return db_task
@@ -78,6 +122,12 @@ def update_task(db: Session, task_id: int, task_update: schemas.TaskUpdate):
             if db_task.status != status_value:
                 db_task.status = status_value
                 db_task.order_index = _get_next_order_index(db, status_value)
+                if status_value == TaskStatus.done.value:
+                    db_task.done_at = datetime.utcnow()
+                else:
+                    db_task.done_at = None
+            elif status_value == TaskStatus.done.value and db_task.done_at is None:
+                db_task.done_at = datetime.utcnow()
         update_data.pop("status")
 
     if "tags" in update_data:
