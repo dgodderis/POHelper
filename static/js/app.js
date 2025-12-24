@@ -11,15 +11,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const newTaskForm = document.getElementById('newTaskForm');
     const quickTaskForm = document.getElementById('quickTaskForm');
+    const editTaskForm = document.getElementById('editTaskForm');
     const newTaskModalElement = document.getElementById('newTaskModal');
     const quickTaskModalElement = document.getElementById('quickTaskModal');
+    const editTaskModalElement = document.getElementById('editTaskModal');
     const newTaskModal = newTaskModalElement ? new bootstrap.Modal(newTaskModalElement) : null;
     const quickTaskModal = quickTaskModalElement ? new bootstrap.Modal(quickTaskModalElement) : null;
+    const editTaskModal = editTaskModalElement ? new bootstrap.Modal(editTaskModalElement) : null;
     const board = document.querySelector('.row.mt-3');
+    const tagPickerContainers = document.querySelectorAll('.tag-picker');
+    const filterInput = document.getElementById('filter_input');
+    const clearFiltersButton = document.getElementById('clear_filters');
+    const filterStatus = document.getElementById('filter_status');
     let draggedTaskId = null;
     let draggedFromStatus = null;
     let currentTasks = [];
     const sortState = {};
+    let availableTags = [];
+    const statusOrder = ["To Do", "In Progress", "Done"];
+    const filterState = {
+        input: ''
+    };
 
     const getTodayDate = () => {
         const today = new Date();
@@ -32,6 +44,116 @@ document.addEventListener('DOMContentLoaded', () => {
     const normalizeTagClass = (tag) => {
         const normalized = tag.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
         return normalized ? `tag-${normalized}` : '';
+    };
+
+    const addTagToInput = (input, tag) => {
+        if (!input || !tag) {
+            return;
+        }
+        const existingTags = input.value
+            .split(',')
+            .map(item => item.trim())
+            .filter(Boolean);
+        const tagLower = tag.toLowerCase();
+        if (!existingTags.some(item => item.toLowerCase() === tagLower)) {
+            existingTags.push(tag);
+        }
+        input.value = existingTags.join(', ');
+    };
+
+    const parseTagsValue = (value) => {
+        if (!value) {
+            return [];
+        }
+        return value
+            .split(',')
+            .map(tag => tag.trim())
+            .filter(Boolean);
+    };
+
+    const refreshTagPickers = () => {
+        tagPickerContainers.forEach((container) => {
+            const select = container.querySelector('.tag-picker-select');
+            if (!select) {
+                return;
+            }
+            const selectedValue = select.value;
+            select.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'Select saved tag';
+            select.appendChild(placeholder);
+            availableTags.forEach((tag) => {
+                const option = document.createElement('option');
+                option.value = tag;
+                option.textContent = tag;
+                select.appendChild(option);
+            });
+            select.value = availableTags.includes(selectedValue) ? selectedValue : '';
+        });
+    };
+
+    const fetchTags = async () => {
+        try {
+            const response = await fetch('/tags/');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            const tags = await response.json();
+            availableTags = Array.isArray(tags) ? tags : [];
+            refreshTagPickers();
+        } catch (error) {
+            logError('Failed to load tags:', error);
+        }
+    };
+
+    const normalizeTokens = (tokens) => tokens.map(token => token.toLowerCase());
+
+    const getFilterTokens = () => {
+        const rawValue = filterState.input || '';
+        const tokens = rawValue
+            .split(',')
+            .map(token => token.trim())
+            .filter(Boolean);
+        return normalizeTokens(tokens.length ? tokens : rawValue.trim() ? [rawValue.trim()] : []);
+    };
+
+    const taskMatchesFilters = (task) => {
+        const tokens = getFilterTokens();
+        if (tokens.length === 0) {
+            return true;
+        }
+        const title = (task.title || '').toLowerCase();
+        const description = (task.description || '').toLowerCase();
+        const taskTags = normalizeTokens(parseTagsValue(task.tags || ''));
+        return tokens.every((token) => {
+            if (title.includes(token) || description.includes(token)) {
+                return true;
+            }
+            return taskTags.some(tag => tag.includes(token));
+        });
+    };
+
+    const getFilteredTasks = () => currentTasks.filter(taskMatchesFilters);
+
+    const updateFilterStatus = () => {
+        if (!filterStatus) {
+            return;
+        }
+        const filteredCount = getFilteredTasks().length;
+        const totalCount = currentTasks.length;
+        const hasFilters = Boolean(filterState.input && filterState.input.trim());
+        filterStatus.textContent = hasFilters
+            ? `Showing ${filteredCount} of ${totalCount}`
+            : '';
+    };
+
+    const updateFiltersFromInputs = () => {
+        if (filterInput) {
+            filterState.input = filterInput.value || '';
+        }
+        renderTasks(getFilteredTasks());
+        updateFilterStatus();
     };
 
     const parseDateValue = (value) => {
@@ -139,7 +261,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const tasks = await response.json();
             currentTasks = tasks;
-            renderTasks(currentTasks);
+            renderTasks(getFilteredTasks());
+            updateFilterStatus();
         } catch (error) {
             logError('There has been a problem with your fetch operation:', error);
         }
@@ -233,8 +356,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 deleteButton.setAttribute('data-task-id', task.id);
                 deleteButton.textContent = 'X';
 
+                const editButton = document.createElement('button');
+                editButton.className = 'btn btn-sm btn-outline-secondary edit-task';
+                editButton.setAttribute('data-task-id', task.id);
+                editButton.textContent = 'Edit';
+
+                const actionsWrap = document.createElement('div');
+                actionsWrap.className = 'task-card-actions';
+                actionsWrap.appendChild(editButton);
+                actionsWrap.appendChild(deleteButton);
+
                 footerRow.appendChild(dueDateEl);
-                footerRow.appendChild(deleteButton);
+                footerRow.appendChild(actionsWrap);
                 cardBody.appendChild(headerRow);
                 cardBody.appendChild(descriptionEl);
                 cardBody.appendChild(footerRow);
@@ -270,9 +403,75 @@ document.addEventListener('DOMContentLoaded', () => {
                 modal.hide();
             }
             fetchTasks();
+            fetchTags();
         } catch (error) {
             logError('Failed to create task:', error);
         }
+    };
+
+    const updateTask = async (taskId, taskData, form, modal) => {
+        try {
+            const response = await fetch(`/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(taskData),
+            });
+            if (!response.ok) {
+                let errorDetail = 'Network response was not ok';
+                try {
+                    const errorData = await response.json();
+                    errorDetail = errorData.detail || errorDetail;
+                } catch (parseError) {
+                    // Keep the default error detail when parsing fails.
+                }
+                throw new Error(errorDetail);
+            }
+            if (form) {
+                form.reset();
+            }
+            if (modal) {
+                modal.hide();
+            }
+            fetchTasks();
+            fetchTags();
+        } catch (error) {
+            logError('Failed to update task:', error);
+        }
+    };
+
+    const openEditModal = (task) => {
+        if (!task || !editTaskModal) {
+            return;
+        }
+        const idField = document.getElementById('edit_task_id');
+        const titleField = document.getElementById('edit_title');
+        const descriptionField = document.getElementById('edit_description');
+        const tagsField = document.getElementById('edit_tags');
+        const dueDateField = document.getElementById('edit_due_date');
+        const statusField = document.getElementById('edit_status');
+
+        if (idField) {
+            idField.value = task.id;
+        }
+        if (titleField) {
+            titleField.value = task.title || '';
+        }
+        if (descriptionField) {
+            descriptionField.value = task.description || '';
+        }
+        if (tagsField) {
+            tagsField.value = task.tags || '';
+        }
+        if (dueDateField) {
+            dueDateField.value = task.due_date || '';
+        }
+        if (statusField) {
+            statusField.value = task.status || 'To Do';
+        }
+
+        editTaskModal.show();
     };
 
     /**
@@ -330,9 +529,22 @@ document.addEventListener('DOMContentLoaded', () => {
         sortState[status] = select.value;
         select.addEventListener('change', () => {
             sortState[status] = select.value;
-            renderTasks(currentTasks);
+            renderTasks(getFilteredTasks());
         });
     });
+
+    if (filterInput) {
+        filterInput.addEventListener('input', updateFiltersFromInputs);
+    }
+
+    if (clearFiltersButton) {
+        clearFiltersButton.addEventListener('click', () => {
+            if (filterInput) {
+                filterInput.value = '';
+            }
+            updateFiltersFromInputs();
+        });
+    }
 
     document.addEventListener('submit', (e) => {
         if (e.target && e.target.id === 'quickTaskForm') {
@@ -340,11 +552,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    document.addEventListener('click', (e) => {
+        const addButton = e.target.closest('.tag-picker-add');
+        if (!addButton) {
+            return;
+        }
+        const container = addButton.closest('.tag-picker');
+        if (!container) {
+            return;
+        }
+        const inputId = container.getAttribute('data-tag-input');
+        const input = inputId ? document.getElementById(inputId) : null;
+        const select = container.querySelector('.tag-picker-select');
+        const tagValue = select ? select.value : '';
+        if (tagValue) {
+            addTagToInput(input, tagValue);
+        }
+    });
+
+    if (editTaskForm) {
+        editTaskForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const taskId = document.getElementById('edit_task_id').value;
+            const title = document.getElementById('edit_title').value.trim();
+            if (!title) {
+                return;
+            }
+            const descriptionValue = document.getElementById('edit_description').value.trim();
+            const tagsValue = document.getElementById('edit_tags').value.trim();
+            const dueDateValue = document.getElementById('edit_due_date').value;
+            const statusValue = document.getElementById('edit_status').value;
+
+            const taskData = {
+                title,
+                description: descriptionValue || null,
+                tags: tagsValue || null,
+                due_date: dueDateValue || null,
+                status: statusValue
+            };
+
+            updateTask(taskId, taskData, editTaskForm, editTaskModal);
+        });
+    }
+
     /**
      * Handles click events on the board, specifically for deleting tasks.
      * @param {Event} e - The click event object.
      */
     board.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('edit-task')) {
+            const taskId = e.target.getAttribute('data-task-id');
+            const task = currentTasks.find(item => item.id === Number(taskId));
+            openEditModal(task);
+            return;
+        }
         if (e.target.classList.contains('delete-task')) {
             const taskId = e.target.getAttribute('data-task-id');
             try {
@@ -361,11 +622,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    board.addEventListener('dblclick', (e) => {
+        if (e.target.closest('.edit-task, .delete-task')) {
+            return;
+        }
+        const taskCard = e.target.closest('.task-card');
+        if (!taskCard) {
+            return;
+        }
+        const currentStatus = taskCard.getAttribute('data-task-status');
+        const nextStatus = getNextStatus(currentStatus);
+        if (!nextStatus) {
+            return;
+        }
+        moveTaskToStatus(taskCard, nextStatus, currentStatus);
+    });
+
     const getColumnStatus = (columnElement) => {
         if (!columnElement) {
             return null;
         }
         return statusByColumnId[columnElement.id] || null;
+    };
+
+    const getNextStatus = (status) => {
+        const currentIndex = statusOrder.indexOf(status);
+        if (currentIndex === -1 || currentIndex >= statusOrder.length - 1) {
+            return null;
+        }
+        return statusOrder[currentIndex + 1];
     };
 
     const getDragAfterElement = (container, y) => {
@@ -403,6 +688,48 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             logError('Failed to reorder tasks:', error);
+        }
+    };
+
+    const moveTaskToStatus = async (taskCard, newStatus, sourceStatus, taskIdOverride = null) => {
+        const taskId = taskCard ? taskCard.getAttribute('data-task-id') : taskIdOverride;
+        if (!taskId || !newStatus) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: newStatus }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Network response was not ok');
+            }
+
+            const destinationColumn = taskColumns[newStatus];
+            if (destinationColumn && sortState[newStatus] === 'manual') {
+                destinationColumn.appendChild(taskCard);
+            }
+            if (taskCard) {
+                taskCard.setAttribute('data-task-status', newStatus);
+            }
+
+            const sourceColumn = sourceStatus ? taskColumns[sourceStatus] : null;
+            if (sourceStatus && sortState[sourceStatus] === 'manual' && sourceColumn) {
+                await updateOrderForColumn(sourceColumn, sourceStatus);
+            }
+            if (destinationColumn && sortState[newStatus] === 'manual') {
+                await updateOrderForColumn(destinationColumn, newStatus);
+            }
+            fetchTasks();
+        } catch (error) {
+            logError('Failed to update task status:', error);
+            fetchTasks();
         }
     };
 
@@ -509,28 +836,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 if (sourceStatus && newStatus !== sourceStatus) {
-                    const response = await fetch(`/tasks/${draggedTaskId}`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ status: newStatus }),
-                    });
-
-                    if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.detail || 'Network response was not ok');
+                    await moveTaskToStatus(
+                        document.querySelector('.task-card.dragging'),
+                        newStatus,
+                        sourceStatus,
+                        draggedTaskId
+                    );
+                } else {
+                    if (sourceStatus && sortState[sourceStatus] === 'manual') {
+                        const sourceColumn = taskColumns[sourceStatus];
+                        if (sourceColumn) {
+                            await updateOrderForColumn(sourceColumn, sourceStatus);
+                        }
                     }
+                    if (sortState[newStatus] === 'manual') {
+                        await updateOrderForColumn(columnElement, newStatus);
+                    }
+                    fetchTasks();
                 }
-
-                const sourceColumn = sourceStatus ? taskColumns[sourceStatus] : null;
-                if (sourceStatus && sortState[sourceStatus] === 'manual' && sourceColumn) {
-                    await updateOrderForColumn(sourceColumn, sourceStatus);
-                }
-                if (sortState[newStatus] === 'manual') {
-                    await updateOrderForColumn(columnElement, newStatus);
-                }
-                fetchTasks();
 
             } catch (error) {
                 logError('Failed to update task status:', error);
@@ -539,5 +862,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    fetchTags();
     fetchTasks();
 });

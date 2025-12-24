@@ -61,6 +61,13 @@ def read_tasks(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     tasks = crud.get_tasks(db, skip=skip, limit=limit)
     return tasks
 
+@app.get("/tags/", response_model=List[str])
+def read_tags(db: Session = Depends(get_db)):
+    """
+    Retrieves saved tags for suggestions.
+    """
+    return crud.get_tags(db)
+
 @app.put("/tasks/reorder", response_model=List[schemas.Task])
 def reorder_tasks(task_reorder: schemas.TaskReorder, db: Session = Depends(get_db)):
     """
@@ -69,11 +76,11 @@ def reorder_tasks(task_reorder: schemas.TaskReorder, db: Session = Depends(get_d
     return crud.reorder_tasks(db, status=task_reorder.status, ordered_ids=task_reorder.ordered_ids)
 
 @app.put("/tasks/{task_id}", response_model=schemas.Task)
-def update_task_status(task_id: int, task_update: schemas.TaskStatusUpdate, db: Session = Depends(get_db)):
+def update_task(task_id: int, task_update: schemas.TaskUpdate, db: Session = Depends(get_db)):
     """
-    Updates the status of an existing task.
+    Updates fields on an existing task.
     """
-    db_task = crud.update_task_status(db, task_id=task_id, status=task_update.status)
+    db_task = crud.update_task(db, task_id=task_id, task_update=task_update)
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task
