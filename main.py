@@ -27,6 +27,8 @@ def ensure_task_columns():
                     "WHERE status = 'Done' AND done_at IS NULL AND created_at IS NOT NULL"
                 )
             )
+        if "deleted_at" not in columns:
+            conn.execute(text("ALTER TABLE tasks ADD COLUMN deleted_at DATETIME"))
         if "urgent" not in columns:
             conn.execute(text("ALTER TABLE tasks ADD COLUMN urgent BOOLEAN"))
             conn.execute(text("UPDATE tasks SET urgent = 0 WHERE urgent IS NULL"))

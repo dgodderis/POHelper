@@ -53,8 +53,9 @@ class TaskReorder(BaseModel):
 
 class Task(TaskBase):
     """
-    Pydantic model for a full Task object, including its ID.
+    Pydantic model for a full Task object, including its ID and deletion timestamp.
     """
     id: int
+    deleted_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

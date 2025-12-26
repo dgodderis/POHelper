@@ -45,6 +45,7 @@ def get_tasks(db: Session, skip: int = 0, limit: int = 100):
                 models.Task.done_at > cutoff,
             )
         )
+        .filter(models.Task.deleted_at.is_(None))
         .offset(skip)
         .limit(limit)
         .all()
@@ -58,13 +59,16 @@ def get_archived_tasks(db: Session, skip: int = 0, limit: int = 200):
     return (
         db.query(models.Task)
         .filter(
-            and_(
-                models.Task.status == TaskStatus.done.value,
-                models.Task.done_at.isnot(None),
-                models.Task.done_at <= cutoff,
+            or_(
+                models.Task.deleted_at.isnot(None),
+                and_(
+                    models.Task.status == TaskStatus.done.value,
+                    models.Task.done_at.isnot(None),
+                    models.Task.done_at <= cutoff,
+                ),
             )
         )
-        .order_by(models.Task.done_at.desc())
+        .order_by(func.coalesce(models.Task.deleted_at, models.Task.done_at).desc())
         .offset(skip)
         .limit(limit)
         .all()
@@ -156,12 +160,17 @@ def reorder_tasks(db: Session, status: schemas.TaskStatus, ordered_ids: List[int
 
 def delete_task(db: Session, task_id: int):
     """
-    Deletes a task from the database.
+    Soft deletes a task, or permanently removes it if already deleted.
     """
     db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
     if db_task:
-        db.delete(db_task)
-        db.commit()
+        if db_task.deleted_at is None:
+            db_task.deleted_at = datetime.utcnow()
+            db.commit()
+            db.refresh(db_task)
+        else:
+            db.delete(db_task)
+            db.commit()
     return db_task
 
 def get_tags(db: Session) -> List[str]:

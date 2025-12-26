@@ -7,7 +7,7 @@ A small FastAPI app that gives Product Owners a lightweight task board with a dr
 - Three-column board: To Do, In Progress, Done
 - Add tasks via a full form or a quick add (auto due date set to today)
 - Drag cards between columns to update status
-- Delete tasks from the card footer
+- Delete tasks from the card footer (with confirmation)
 - Tags display as small badges (derived from a comma-separated tag string)
 - Due dates are shown on each card
 - Overdue tasks are highlighted on the board
@@ -45,6 +45,7 @@ Task fields stored in SQLite:
 - `tags` optional comma-separated string
 - `due_date` optional date
 - `status` string, default "To Do"
+- `deleted_at` optional datetime for soft-deleted tasks
 
 Allowed statuses are enforced in the API layer via `TaskStatus`:
 `To Do`, `In Progress`, `Done`.
@@ -55,7 +56,7 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
 - `GET /tasks/` list tasks (supports `skip` and `limit`)
 - `POST /tasks/` create a task
 - `PUT /tasks/{task_id}` update only the status
-- `DELETE /tasks/{task_id}` delete a task
+- `DELETE /tasks/{task_id}` delete a task (soft delete, or permanently remove if already deleted)
 
 ## UI behavior (front end)
 
@@ -63,7 +64,8 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
 - Creating a task submits JSON to `POST /tasks/`.
 - Quick add sets `due_date` to today and only requires a title.
 - Drag and drop sends `PUT /tasks/{id}` with the new status.
-- Delete uses `DELETE /tasks/{id}` and refreshes the board.
+- Delete uses `DELETE /tasks/{id}`, prompts for confirmation, and refreshes the board.
+- Deleted tasks appear in the archived list and can be deleted again to remove them permanently.
 - Tags are split on commas, trimmed, and styled with slugged class names.
 - Filters match a single input against title, description, or tags.
 - Column counts reflect the current filtered view.

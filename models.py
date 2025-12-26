@@ -17,6 +17,7 @@ class Task(Base):
         created_at (datetime): When the task was created.
         order_index (Optional[int]): Manual ordering position within the column.
         done_at (Optional[datetime]): When the task was marked done.
+        deleted_at (Optional[datetime]): When the task was deleted (soft delete).
         urgent (bool): Whether the task is marked urgent.
     """
     __tablename__ = "tasks"
@@ -30,6 +31,7 @@ class Task(Base):
     created_at: datetime = Column(DateTime, default=datetime.utcnow)
     order_index: Optional[int] = Column(Integer)
     done_at: Optional[datetime] = Column(DateTime)
+    deleted_at: Optional[datetime] = Column(DateTime)
     urgent: bool = Column(Boolean, default=False)
 
 class Tag(Base):

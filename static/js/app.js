@@ -95,9 +95,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const newTaskModalElement = document.getElementById('newTaskModal');
     const quickTaskModalElement = document.getElementById('quickTaskModal');
     const editTaskModalElement = document.getElementById('editTaskModal');
+    const deleteTaskModalElement = document.getElementById('deleteTaskModal');
     const newTaskModal = newTaskModalElement ? new bootstrap.Modal(newTaskModalElement) : null;
     const quickTaskModal = quickTaskModalElement ? new bootstrap.Modal(quickTaskModalElement) : null;
     const editTaskModal = editTaskModalElement ? new bootstrap.Modal(editTaskModalElement) : null;
+    const deleteTaskModal = deleteTaskModalElement ? new bootstrap.Modal(deleteTaskModalElement) : null;
+    const deleteTaskContext = document.getElementById('delete-task-context');
+    const confirmDeleteButton = document.getElementById('confirm-delete-task');
     const board = document.querySelector('.row.mt-3');
     const tagPickerContainers = document.querySelectorAll('.tag-picker');
     const filterInput = document.getElementById('filter_input');
@@ -114,6 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let draggedTaskId = null;
     let draggedFromStatus = null;
+    let pendingDeleteTaskId = null;
     let currentTasks = [];
     let archivedTasks = [];
     const sortState = {};
@@ -316,6 +321,49 @@ document.addEventListener('DOMContentLoaded', () => {
             return `${hours}h`;
         }
         return `${hours}h ${minutes}m`;
+    };
+
+    const getTaskById = (taskId) => {
+        if (!taskId) {
+            return null;
+        }
+        const numericId = Number(taskId);
+        return currentTasks.find(task => task.id === numericId)
+            || archivedTasks.find(task => task.id === numericId)
+            || null;
+    };
+
+    const openDeleteModal = (taskId) => {
+        if (!deleteTaskModal) {
+            return;
+        }
+        const task = getTaskById(taskId);
+        pendingDeleteTaskId = taskId ? Number(taskId) : null;
+        if (deleteTaskContext) {
+            const title = task?.title ? `Task: ${task.title}` : '';
+            const detail = task?.deleted_at
+                ? 'This will permanently remove it from the archive.'
+                : 'It will move to the archived list.';
+            deleteTaskContext.textContent = title ? `${title} - ${detail}` : detail;
+        }
+        deleteTaskModal.show();
+    };
+
+    const deleteTaskById = async (taskId) => {
+        if (!taskId) {
+            return;
+        }
+        try {
+            const response = await fetch(`/tasks/${taskId}`, {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            fetchTasks();
+        } catch (error) {
+            logError('Failed to delete task:', error);
+        }
     };
 
     const getLogTimestamp = () => new Date().toISOString();
@@ -590,10 +638,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const archivedAt = document.createElement('div');
             archivedAt.className = 'task-archive-note';
-            archivedAt.textContent = `Archived: ${formatDateTime(task.done_at)}`;
+            const archivedLabel = task.deleted_at ? 'Deleted' : 'Archived';
+            const archivedTimestamp = task.deleted_at || task.done_at;
+            archivedAt.textContent = `${archivedLabel}: ${formatDateTime(archivedTimestamp)}`;
 
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn btn-sm btn-danger delete-task';
+            deleteButton.setAttribute('data-task-id', task.id);
+            deleteButton.textContent = 'Delete';
+
+            const actionsWrap = document.createElement('div');
+            actionsWrap.className = 'task-card-actions';
+            actionsWrap.appendChild(deleteButton);
+
+            dueDateEl.appendChild(archivedAt);
             footerRow.appendChild(dueDateEl);
-            footerRow.appendChild(archivedAt);
+            footerRow.appendChild(actionsWrap);
 
             cardBody.appendChild(headerRow);
             cardBody.appendChild(descriptionEl);
@@ -858,19 +918,31 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (e.target.classList.contains('delete-task')) {
             const taskId = e.target.getAttribute('data-task-id');
-            try {
-                const response = await fetch(`/tasks/${taskId}`, {
-                    method: 'DELETE',
-                });
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                fetchTasks();
-            } catch (error) {
-                logError('Failed to delete task:', error);
-            }
+            openDeleteModal(taskId);
         }
     });
+
+    if (archivedCards) {
+        archivedCards.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-task')) {
+                const taskId = e.target.getAttribute('data-task-id');
+                openDeleteModal(taskId);
+            }
+        });
+    }
+
+    if (confirmDeleteButton) {
+        confirmDeleteButton.addEventListener('click', () => {
+            if (!pendingDeleteTaskId) {
+                return;
+            }
+            deleteTaskById(pendingDeleteTaskId);
+            pendingDeleteTaskId = null;
+            if (deleteTaskModal) {
+                deleteTaskModal.hide();
+            }
+        });
+    }
 
     board.addEventListener('dblclick', (e) => {
         if (e.target.closest('.edit-task, .delete-task')) {

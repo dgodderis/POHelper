@@ -41,6 +41,21 @@ def test_update_and_delete_task(test_env):
 
     response = client.delete(f"/tasks/{created['id']}")
     assert response.status_code == 200
+    deleted = response.json()
+    assert deleted["deleted_at"] is not None
+
+    response = client.get("/tasks/")
+    assert response.status_code == 200
+    tasks = response.json()
+    assert all(task["id"] != created["id"] for task in tasks)
+
+    response = client.get("/tasks/archived")
+    assert response.status_code == 200
+    archived = response.json()
+    assert any(task["id"] == created["id"] for task in archived)
+
+    response = client.delete(f"/tasks/{created['id']}")
+    assert response.status_code == 200
     response = client.delete(f"/tasks/{created['id']}")
     assert response.status_code == 404
 
