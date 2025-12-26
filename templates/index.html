@@ -14,27 +14,32 @@
                 <img src="/static/images/cm.png" alt="PO Helper Logo">
                 PO Helper
             </a>
-            <div class="dropdown">
-                <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
-                    Filters
-                </button>
-                <div class="dropdown-menu dropdown-menu-end filter-dropdown">
-                    <div class="filter-card-body">
-                        <div class="filter-row">
-                            <div class="filter-group">
-                                <label for="filter_input" class="form-label">Search</label>
-                                <input type="text" class="form-control" id="filter_input" placeholder="Keyword or tag">
-                                <div class="form-text">Matches title, description, or tags.</div>
-                            </div>
-                            <div class="filter-group filter-group-actions">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" id="clear_filters">
-                                    Clear filters
-                                </button>
-                                <div class="filter-status" id="filter_status" aria-live="polite"></div>
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <div class="dropdown">
+                    <button class="btn btn-light btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                        Filters
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end filter-dropdown">
+                        <div class="filter-card-body">
+                            <div class="filter-row">
+                                <div class="filter-group">
+                                    <label for="filter_input" class="form-label">Search</label>
+                                    <input type="text" class="form-control" id="filter_input" placeholder="Keyword, tag, or due date (YYYY-MM-DD)">
+                                    <div class="form-text">Matches title, description, tags, or due date.</div>
+                                </div>
+                                <div class="filter-group filter-group-actions">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="clear_filters">
+                                        Clear filters
+                                    </button>
+                                    <div class="filter-status" id="filter_status" aria-live="polite"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
+                <button type="button" class="btn btn-outline-light btn-sm" id="toggle-archive">
+                    Archived <span class="badge bg-light text-dark" id="archived-count">0</span>
+                </button>
             </div>
         </div>
     </nav>
@@ -44,7 +49,10 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>To Do</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="column-title">To Do</span>
+                            <span class="badge bg-light text-dark task-count" id="todo-count">0</span>
+                        </div>
                         <div class="d-flex gap-1 align-items-center">
                             <select class="form-select form-select-sm task-sort" data-status="To Do" aria-label="Sort tasks in To Do">
                                 <option value="manual" selected>Manual</option>
@@ -71,7 +79,10 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>In Progress</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="column-title">In Progress</span>
+                            <span class="badge bg-light text-dark task-count" id="inprogress-count">0</span>
+                        </div>
                         <select class="form-select form-select-sm task-sort" data-status="In Progress" aria-label="Sort tasks in In Progress">
                             <option value="manual" selected>Manual</option>
                             <option value="due-asc">Due date (asc)</option>
@@ -90,7 +101,10 @@
             <div class="col-md-4">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span>Done</span>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="column-title">Done</span>
+                            <span class="badge bg-light text-dark task-count" id="done-count">0</span>
+                        </div>
                         <select class="form-select form-select-sm task-sort" data-status="Done" aria-label="Sort tasks in Done">
                             <option value="manual" selected>Manual</option>
                             <option value="due-asc">Due date (asc)</option>
@@ -105,6 +119,18 @@
                         <!-- Tasks will be dynamically added here -->
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mt-4 archived-section d-none" id="archived-section">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Archived Tasks</span>
+                <small class="text-muted">Done for more than 8 hours</small>
+            </div>
+            <div class="card-body" id="archived-cards">
+                <!-- Archived tasks will be dynamically added here -->
             </div>
         </div>
     </div>
@@ -136,6 +162,10 @@
                                 </div>
                                 <div class="form-text">Use commas to add multiple tags.</div>
                             </div>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="quick_urgent">
+                            <label class="form-check-label" for="quick_urgent">Urgent</label>
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm">Add Task</button>
                     </form>
@@ -179,6 +209,10 @@
                             <label for="due_date" class="form-label">Due Date</label>
                             <input type="date" class="form-control" id="due_date">
                         </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="urgent">
+                            <label class="form-check-label" for="urgent">Urgent</label>
+                        </div>
                         <button type="submit" class="btn btn-primary">Save Task</button>
                     </form>
                 </div>
@@ -221,6 +255,10 @@
                         <div class="mb-3">
                             <label for="edit_due_date" class="form-label">Due Date</label>
                             <input type="date" class="form-control" id="edit_due_date">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="edit_urgent">
+                            <label class="form-check-label" for="edit_urgent">Urgent</label>
                         </div>
                         <div class="mb-3">
                             <label for="edit_status" class="form-label">Status</label>

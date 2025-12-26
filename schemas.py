@@ -24,6 +24,8 @@ class TaskBase(BaseModel):
     status: TaskStatus
     created_at: Optional[datetime] = None
     order_index: Optional[int] = None
+    done_at: Optional[datetime] = None
+    urgent: bool = False
 
 class TaskCreate(TaskBase):
     """
@@ -40,6 +42,7 @@ class TaskUpdate(BaseModel):
     tags: Optional[str] = None
     due_date: Optional[date] = None
     status: Optional[TaskStatus] = None
+    urgent: Optional[bool] = None
 
 class TaskReorder(BaseModel):
     """

@@ -1,6 +1,6 @@
 from typing import Optional
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Date, DateTime
+from sqlalchemy import Column, Integer, String, Date, DateTime, Boolean
 from database import Base
 
 class Task(Base):
@@ -16,6 +16,8 @@ class Task(Base):
         status (str): The current status of the task, defaults to "To Do".
         created_at (datetime): When the task was created.
         order_index (Optional[int]): Manual ordering position within the column.
+        done_at (Optional[datetime]): When the task was marked done.
+        urgent (bool): Whether the task is marked urgent.
     """
     __tablename__ = "tasks"
 
@@ -27,6 +29,8 @@ class Task(Base):
     status: str = Column(String, default="To Do")
     created_at: datetime = Column(DateTime, default=datetime.utcnow)
     order_index: Optional[int] = Column(Integer)
+    done_at: Optional[datetime] = Column(DateTime)
+    urgent: bool = Column(Boolean, default=False)
 
 class Tag(Base):
     """

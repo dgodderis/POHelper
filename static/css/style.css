@@ -81,6 +81,11 @@ body {
     white-space: nowrap;
 }
 
+.task-count {
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
 .btn-primary {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
@@ -88,6 +93,18 @@ body {
 
 .task-card {
     cursor: grab;
+}
+
+.task-card.task-urgent {
+    border-left: 4px solid #dc2626;
+    background-color: #fff5f5;
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.15);
+}
+
+.task-card.task-overdue:not(.task-urgent) {
+    border-left: 4px solid #dc2626;
+    background-color: #fff5f5;
+    box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.15);
 }
 
 .task-card:active {
@@ -141,6 +158,17 @@ body {
     text-transform: uppercase;
 }
 
+.task-due-tag {
+    background-color: #e5e7eb;
+    color: #111827;
+    text-transform: none;
+}
+
+.task-card.task-overdue .task-due-tag {
+    background-color: #fecaca;
+    color: #7f1d1d;
+}
+
 .task-tag-empty {
     opacity: 0.7;
 }
@@ -159,6 +187,7 @@ body {
     font-size: 0.75rem;
     line-height: 1.1;
     margin-bottom: 0.15rem;
+    white-space: pre-wrap;
 }
 
 .task-card-footer {
@@ -177,6 +206,19 @@ body {
 .task-card-due {
     font-size: 0.7rem;
     margin: 0;
+}
+
+.task-archive-note {
+    font-size: 0.65rem;
+    color: #6c757d;
+}
+
+.archived-section .card {
+    border-color: #e1e4e8;
+}
+
+.archived-task {
+    cursor: default;
 }
 
 .task-card .btn {

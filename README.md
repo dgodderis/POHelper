@@ -10,7 +10,9 @@ A small FastAPI app that gives Product Owners a lightweight task board with a dr
 - Delete tasks from the card footer
 - Tags display as small badges (derived from a comma-separated tag string)
 - Due dates are shown on each card
+- Overdue tasks are highlighted on the board
 - Filter tasks by keyword or tags
+- Column headers show task counts
 
 ## Tech stack
 
@@ -64,6 +66,7 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
 - Delete uses `DELETE /tasks/{id}` and refreshes the board.
 - Tags are split on commas, trimmed, and styled with slugged class names.
 - Filters match a single input against title, description, or tags.
+- Column counts reflect the current filtered view.
 
 ## Installation
 
@@ -101,3 +104,25 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
 2. **Open your browser:**
 
     Navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000)
+
+## Tests
+
+1. **Install test dependencies:**
+
+    ```bash
+    uv pip install -r requirements-dev.txt
+    ```
+
+    ```bash
+    npm install
+    ```
+
+2. **Run the test suites:**
+
+    ```bash
+    pytest
+    ```
+
+    ```bash
+    npm test
+    ```
