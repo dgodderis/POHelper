@@ -141,6 +141,26 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
     python desktop.py
     ```
 
+3. **Auto-start on Windows (optional):**
+
+    This project includes a helper script that launches the desktop app using the
+    `uv` virtual environment at `.venv`.
+
+    - Helper script: `scripts/pohelper-startup.cmd`
+    - Startup folder location: run `shell:startup` from `Win + R`
+
+    **Option A: Startup folder**
+
+    Create a shortcut to `scripts/pohelper-startup.cmd` and place it in the Startup
+    folder. The app will launch when you log in.
+
+    **Option B: Task Scheduler**
+
+    Create a task that runs at logon:
+    - Program/script: `C:\Windows\System32\cmd.exe`
+    - Add arguments: `/c "C:\path\to\POHelper\scripts\pohelper-startup.cmd"`
+    - Start in: `C:\path\to\POHelper`
+
 ## Tests
 
 1. **Install test dependencies:**
