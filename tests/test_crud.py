@@ -44,7 +44,7 @@ def test_create_task_sets_fields(test_env):
         assert task.id is not None
         assert task.created_at is not None
         assert task.order_index == 1
-        assert task.status == "To Do"
+        assert task.status == "ToDo"
     finally:
         db.close()
 
@@ -57,7 +57,7 @@ def test_update_task_status_updates_order(test_env):
     try:
         existing = models.Task(
             title="Existing",
-            status="In Progress",
+            status="Ongoing",
             order_index=1,
         )
         db.add(existing)
@@ -78,7 +78,7 @@ def test_update_task_status_updates_order(test_env):
             task.id,
             TaskUpdate(status=TaskStatus.in_progress),
         )
-        assert updated.status == "In Progress"
+        assert updated.status == "Ongoing"
         assert updated.order_index == 2
     finally:
         db.close()
@@ -90,8 +90,8 @@ def test_reorder_tasks_respects_status(test_env):
     crud = test_env["crud"]
     db = database.SessionLocal()
     try:
-        t1 = models.Task(title="One", status="To Do", order_index=1)
-        t2 = models.Task(title="Two", status="To Do", order_index=2)
+        t1 = models.Task(title="One", status="ToDo", order_index=1)
+        t2 = models.Task(title="Two", status="ToDo", order_index=2)
         other = models.Task(title="Other", status="Done", order_index=1)
         db.add_all([t1, t2, other])
         db.commit()

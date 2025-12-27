@@ -173,6 +173,22 @@ def delete_task(db: Session, task_id: int):
             db.commit()
     return db_task
 
+def restore_task(db: Session, task_id: int):
+    """
+    Restores an archived task to the ToDo column.
+    """
+    db_task = db.query(models.Task).filter(models.Task.id == task_id).first()
+    if not db_task:
+        return None
+    status_value = TaskStatus.to_do.value
+    db_task.deleted_at = None
+    db_task.status = status_value
+    db_task.done_at = None
+    db_task.order_index = _get_next_order_index(db, status_value)
+    db.commit()
+    db.refresh(db_task)
+    return db_task
+
 def get_tags(db: Session) -> List[str]:
     """
     Retrieves saved tags for suggestions.
@@ -193,3 +209,13 @@ def get_tags(db: Session) -> List[str]:
     if added:
         db.commit()
     return sorted(tag_names, key=lambda name: name.lower())
+
+def delete_archived_tasks(db: Session) -> int:
+    """
+    Permanently deletes archived or soft-deleted tasks.
+    """
+    archived_tasks = get_archived_tasks(db, skip=0, limit=10_000)
+    for task in archived_tasks:
+        db.delete(task)
+    db.commit()
+    return len(archived_tasks)

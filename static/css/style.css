@@ -5,16 +5,19 @@
     --text-color: #212529; /* Dark grey */
     --header-color: #ffffff; /* Pure white */
     --card-header-color: #d4edda; /* Light green */
+    --po-zoom: 1;
 }
 
 body {
     background-color: var(--background-color);
     color: var(--text-color);
+    zoom: var(--po-zoom);
 }
 
 .navbar {
     background-color: var(--primary-color);
-    padding: 5px 1rem;
+    padding: 2px 1rem;
+    height: 50px;
 }
 
 .navbar-brand {
@@ -24,7 +27,7 @@ body {
 }
 
 .navbar-brand img {
-    height: 40px; /* Increased logo size */
+    height: 46px;
     margin-right: 10px;
 }
 
@@ -69,11 +72,23 @@ body {
     gap: 0.35rem;
     flex-wrap: nowrap;
     min-height: 2.4rem;
+    height: 2.4rem;
+    overflow: hidden;
+}
+
+.todo-header {
+    flex-wrap: nowrap;
 }
 
 .task-sort {
     max-width: 9.5rem;
+    min-width: 0;
+    flex: 1 1 auto;
     white-space: nowrap;
+}
+
+.todo-header .task-sort {
+    max-width: 8rem;
 }
 
 .card-header .btn,
@@ -115,9 +130,7 @@ body {
     opacity: 0.5;
 }
 
-#todo-cards,
-#inprogress-cards,
-#done-cards {
+.task-column {
     min-height: 80px;
 }
 
@@ -226,7 +239,7 @@ body {
     font-size: 0.65rem;
 }
 
-.card-body.drag-over {
+.task-column.drag-over {
     background-color: #f0f0f0;
 }
 
@@ -237,6 +250,19 @@ body {
 .tag-picker .form-text {
     font-size: 0.7rem;
     margin-top: 0.25rem;
+}
+
+.column-actions {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+
+.todo-header .btn {
+    padding: 0.1rem 0.35rem;
+    font-size: 0.65rem;
 }
 
 @media (max-width: 768px) {

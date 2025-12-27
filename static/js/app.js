@@ -80,13 +80,13 @@ if (typeof window !== 'undefined') {
 
 document.addEventListener('DOMContentLoaded', () => {
     const taskColumns = {
-        "To Do": document.getElementById('todo-cards'),
-        "In Progress": document.getElementById('inprogress-cards'),
+        "ToDo": document.getElementById('todo-cards'),
+        "Ongoing": document.getElementById('inprogress-cards'),
         "Done": document.getElementById('done-cards')
     };
     const statusByColumnId = {
-        "todo-cards": "To Do",
-        "inprogress-cards": "In Progress",
+        "todo-cards": "ToDo",
+        "inprogress-cards": "Ongoing",
         "done-cards": "Done"
     };
     const newTaskForm = document.getElementById('newTaskForm');
@@ -111,11 +111,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const archivedCards = document.getElementById('archived-cards');
     const toggleArchiveButton = document.getElementById('toggle-archive');
     const archivedCountBadge = document.getElementById('archived-count');
+    const deleteArchivedButton = document.getElementById('delete-archived');
     const columnCountBadges = {
-        "To Do": document.getElementById('todo-count'),
-        "In Progress": document.getElementById('inprogress-count'),
+        "ToDo": document.getElementById('todo-count'),
+        "Ongoing": document.getElementById('inprogress-count'),
         "Done": document.getElementById('done-count')
     };
+    const zoomState = {
+        level: 1
+    };
+    const ZOOM_MIN = 0.8;
+    const ZOOM_MAX = 1.6;
+    const ZOOM_STEP = 0.1;
     let draggedTaskId = null;
     let draggedFromStatus = null;
     let pendingDeleteTaskId = null;
@@ -123,18 +130,36 @@ document.addEventListener('DOMContentLoaded', () => {
     let archivedTasks = [];
     const sortState = {};
     let availableTags = [];
-    const statusOrder = ["To Do", "In Progress", "Done"];
+    const statusOrder = ["ToDo", "Ongoing", "Done"];
     const ARCHIVE_AFTER_HOURS = 8;
     const filterState = {
         input: ''
     };
 
-    const getTodayDate = () => {
-        const today = new Date();
-        const year = today.getFullYear();
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const day = String(today.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+    const applyZoom = () => {
+        document.documentElement.style.setProperty('--po-zoom', zoomState.level.toFixed(2));
+        try {
+            localStorage.setItem('pohelper_zoom', zoomState.level.toFixed(2));
+        } catch (error) {
+            logError('Failed to store zoom preference:', error);
+        }
+    };
+
+    const setZoomLevel = (level) => {
+        zoomState.level = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, level));
+        applyZoom();
+    };
+
+    const loadZoomLevel = () => {
+        try {
+            const stored = Number.parseFloat(localStorage.getItem('pohelper_zoom'));
+            if (!Number.isNaN(stored)) {
+                zoomState.level = stored;
+            }
+        } catch (error) {
+            logError('Failed to read zoom preference:', error);
+        }
+        applyZoom();
     };
 
     const getStartOfToday = () => {
@@ -366,6 +391,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const restoreTaskById = async (taskId) => {
+        if (!taskId) {
+            return;
+        }
+        try {
+            const response = await fetch(`/tasks/${taskId}/restore`, {
+                method: 'PUT',
+            });
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            fetchTasks();
+        } catch (error) {
+            logError('Failed to restore task:', error);
+        }
+    };
+
+    const deleteArchivedTasks = async () => {
+        try {
+            const response = await fetch('/tasks/archived', {
+                method: 'DELETE',
+            });
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            fetchTasks();
+            fetchArchivedTasks();
+        } catch (error) {
+            logError('Failed to delete archived tasks:', error);
+        }
+    };
+
     const getLogTimestamp = () => new Date().toISOString();
 
     const logError = (message, error) => {
@@ -457,8 +514,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const tasksByStatus = {
-            "To Do": [],
-            "In Progress": [],
+            "ToDo": [],
+            "Ongoing": [],
             "Done": []
         };
 
@@ -649,6 +706,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const actionsWrap = document.createElement('div');
             actionsWrap.className = 'task-card-actions';
+            const restoreButton = document.createElement('button');
+            restoreButton.className = 'btn btn-sm btn-outline-primary restore-task';
+            restoreButton.setAttribute('data-task-id', task.id);
+            restoreButton.textContent = 'Restore';
+            actionsWrap.appendChild(restoreButton);
             actionsWrap.appendChild(deleteButton);
 
             dueDateEl.appendChild(archivedAt);
@@ -758,7 +820,7 @@ document.addEventListener('DOMContentLoaded', () => {
             urgentField.checked = Boolean(task.urgent);
         }
         if (statusField) {
-            statusField.value = task.status || 'To Do';
+            statusField.value = task.status || 'ToDo';
         }
 
         editTaskModal.show();
@@ -781,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
             description,
             tags,
             due_date: due_date || null,
-            status: 'To Do',
+            status: 'ToDo',
             urgent
         };
 
@@ -807,8 +869,8 @@ document.addEventListener('DOMContentLoaded', () => {
             title,
             description: null,
             tags: tagsValue || null,
-            due_date: getTodayDate(),
-            status: 'To Do',
+            due_date: null,
+            status: 'ToDo',
             urgent
         };
 
@@ -853,6 +915,34 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    if (deleteArchivedButton) {
+        deleteArchivedButton.addEventListener('click', () => {
+            if (archivedTasks.length === 0) {
+                return;
+            }
+            const confirmed = window.confirm('Delete all archived tasks permanently?');
+            if (confirmed) {
+                deleteArchivedTasks();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (!e.ctrlKey) {
+            return;
+        }
+        if (e.key === '=' || e.key === '+') {
+            e.preventDefault();
+            setZoomLevel(zoomState.level + ZOOM_STEP);
+        } else if (e.key === '-') {
+            e.preventDefault();
+            setZoomLevel(zoomState.level - ZOOM_STEP);
+        } else if (e.key === '0') {
+            e.preventDefault();
+            setZoomLevel(1);
+        }
+    });
 
     document.addEventListener('submit', (e) => {
         if (e.target && e.target.id === 'quickTaskForm') {
@@ -924,6 +1014,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (archivedCards) {
         archivedCards.addEventListener('click', (e) => {
+            if (e.target.classList.contains('restore-task')) {
+                const taskId = e.target.getAttribute('data-task-id');
+                restoreTaskById(taskId);
+                return;
+            }
             if (e.target.classList.contains('delete-task')) {
                 const taskId = e.target.getAttribute('data-task-id');
                 openDeleteModal(taskId);
@@ -1197,6 +1292,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(refreshCountdowns, 60000);
     setInterval(fetchTasks, 300000);
 
+    loadZoomLevel();
     fetchTags();
     fetchTasks();
 });

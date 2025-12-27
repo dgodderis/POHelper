@@ -4,8 +4,8 @@ A small FastAPI app that gives Product Owners a lightweight task board with a dr
 
 ## What it does
 
-- Three-column board: To Do, In Progress, Done
-- Add tasks via a full form or a quick add (auto due date set to today)
+- Three-column board: ToDo, Ongoing, Done
+- Add tasks via a full form or a quick add
 - Drag cards between columns to update status
 - Delete tasks from the card footer (with confirmation)
 - Tags display as small badges (derived from a comma-separated tag string)
@@ -13,6 +13,8 @@ A small FastAPI app that gives Product Owners a lightweight task board with a dr
 - Overdue tasks are highlighted on the board
 - Filter tasks by keyword or tags
 - Column headers show task counts
+- Restore archived or deleted tasks back to the board
+- Delete all archived tasks from the archive header
 
 ## Tech stack
 
@@ -46,28 +48,36 @@ Task fields stored in SQLite:
 - `description` optional string
 - `tags` optional comma-separated string
 - `due_date` optional date
-- `status` string, default "To Do"
+- `status` string, default "ToDo"
 - `deleted_at` optional datetime for soft-deleted tasks
 
 Allowed statuses are enforced in the API layer via `TaskStatus`:
-`To Do`, `In Progress`, `Done`.
+`ToDo`, `Ongoing`, `Done`.
 
 ## API endpoints
 
 - `GET /` serves the board UI
 - `GET /tasks/` list tasks (supports `skip` and `limit`)
+- `GET /tasks/archived` list archived/deleted tasks
+- `GET /tags/` list saved tags
 - `POST /tasks/` create a task
-- `PUT /tasks/{task_id}` update only the status
+- `PUT /tasks/reorder` reorder tasks within a column
+- `PUT /tasks/{task_id}` update task fields
+- `PUT /tasks/{task_id}/restore` restore an archived/deleted task to ToDo
+- `DELETE /tasks/archived` permanently delete all archived tasks
 - `DELETE /tasks/{task_id}` delete a task (soft delete, or permanently remove if already deleted)
 
 ## UI behavior (front end)
 
 - The board loads tasks with `GET /tasks/` on page load.
 - Creating a task submits JSON to `POST /tasks/`.
-- Quick add sets `due_date` to today and only requires a title.
+- Quick add only requires a title.
 - Drag and drop sends `PUT /tasks/{id}` with the new status.
 - Delete uses `DELETE /tasks/{id}`, prompts for confirmation, and refreshes the board.
 - Deleted tasks appear in the archived list and can be deleted again to remove them permanently.
+- Archived tasks include a restore action that returns them to ToDo.
+- Archived tasks can be bulk-deleted with the archive header button.
+- `Ctrl` + `+`, `Ctrl` + `-`, and `Ctrl` + `0` adjust zoom.
 - Tags are split on commas, trimmed, and styled with slugged class names.
 - Filters match a single input against title, description, or tags.
 - Column counts reflect the current filtered view.

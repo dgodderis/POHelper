@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 
-def create_task(client, title, status="To Do", tags=None):
+def create_task(client, title, status="ToDo", tags=None):
     payload = {
         "title": title,
         "description": None,
@@ -30,13 +30,13 @@ def test_update_and_delete_task(test_env):
 
     update = {
         "title": "Task B Updated",
-        "status": "In Progress",
+        "status": "Ongoing",
     }
     response = client.put(f"/tasks/{created['id']}", json=update)
     assert response.status_code == 200
     updated = response.json()
     assert updated["title"] == "Task B Updated"
-    assert updated["status"] == "In Progress"
+    assert updated["status"] == "Ongoing"
     assert updated["order_index"] == 1
 
     response = client.delete(f"/tasks/{created['id']}")
@@ -67,7 +67,7 @@ def test_reorder_tasks_endpoint(test_env):
 
     response = client.put(
         "/tasks/reorder",
-        json={"status": "To Do", "ordered_ids": [second["id"], first["id"]]},
+        json={"status": "ToDo", "ordered_ids": [second["id"], first["id"]]},
     )
     assert response.status_code == 200
     reordered = response.json()

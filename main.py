@@ -15,6 +15,9 @@ BASE_DIR = Path(__file__).resolve().parent
 models.Base.metadata.create_all(bind=engine)
 
 def ensure_task_columns():
+    """
+    Ensures required task columns exist in the SQLite table.
+    """
     with engine.connect() as conn:
         result = conn.execute(text("PRAGMA table_info(tasks)")).fetchall()
         columns = {row[1] for row in result}
@@ -35,6 +38,8 @@ def ensure_task_columns():
         if "urgent" not in columns:
             conn.execute(text("ALTER TABLE tasks ADD COLUMN urgent BOOLEAN"))
             conn.execute(text("UPDATE tasks SET urgent = 0 WHERE urgent IS NULL"))
+        conn.execute(text("UPDATE tasks SET status = 'ToDo' WHERE status = 'To Do'"))
+        conn.execute(text("UPDATE tasks SET status = 'Ongoing' WHERE status = 'In Progress'"))
         conn.commit()
 
 ensure_task_columns()
@@ -108,12 +113,30 @@ def update_task(task_id: int, task_update: schemas.TaskUpdate, db: Session = Dep
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task
 
+@app.delete("/tasks/archived")
+def delete_archived_tasks(db: Session = Depends(get_db)):
+    """
+    Permanently deletes all archived tasks.
+    """
+    deleted_count = crud.delete_archived_tasks(db)
+    return {"deleted_count": deleted_count}
+
 @app.delete("/tasks/{task_id}", response_model=schemas.Task)
 def delete_task(task_id: int, db: Session = Depends(get_db)):
     """
     Deletes a task from the database.
     """
     db_task = crud.delete_task(db, task_id=task_id)
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return db_task
+
+@app.put("/tasks/{task_id}/restore", response_model=schemas.Task)
+def restore_task(task_id: int, db: Session = Depends(get_db)):
+    """
+    Restores an archived task to the ToDo column.
+    """
+    db_task = crud.restore_task(db, task_id=task_id)
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
     return db_task
