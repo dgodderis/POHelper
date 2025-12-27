@@ -21,10 +21,12 @@ A small FastAPI app that gives Product Owners a lightweight task board with a dr
 - Jinja2 templates for the page shell
 - Vanilla JS for the board interactions
 - Bootstrap 5 (CDN) for layout and modal UI
+- pywebview for the desktop window
 
 ## Project structure
 
 - `main.py` FastAPI app, routes, and template/static mounts
+- `desktop.py` desktop launcher (starts a local server + webview)
 - `crud.py` database operations
 - `models.py` SQLAlchemy models
 - `schemas.py` Pydantic schemas and status enum
@@ -33,7 +35,7 @@ A small FastAPI app that gives Product Owners a lightweight task board with a dr
 - `static/js/app.js` board behavior and API calls
 - `static/css/style.css` visual theme
 - `static/images/cm.png` logo
-- `po_helper.db` SQLite database file
+- `po_helper.db` SQLite database file (stored in a per-user app data directory by default)
 
 ## Data model
 
@@ -95,7 +97,7 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
     uv pip install -r requirements.txt
     ```
 
-## Running the application
+## Running the application (Option A)
 
 1. **Start the server:**
 
@@ -106,6 +108,28 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
 2. **Open your browser:**
 
     Navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000)
+
+## Desktop app (Option B)
+
+
+
+1. **Data location:**
+
+    By default, the SQLite database is stored in the per-user app data directory.
+    Override it with `POHELPER_DATABASE_URL` or set `POHELPER_DATA_DIR` to control
+    where the database file is created.
+
+    To use the database stored in the project root, set:
+
+    ```bash
+    set POHELPER_DATABASE_URL=sqlite:///po_helper.db
+    ```
+
+2. **Run the desktop launcher:**
+
+    ```bash
+    python desktop.py
+    ```
 
 ## Tests
 

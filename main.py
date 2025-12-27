@@ -2,12 +2,15 @@ from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pathlib import Path
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from typing import List # Added for Python 3.8 compatibility
 
 import crud, models, schemas
 from database import SessionLocal, engine
+
+BASE_DIR = Path(__file__).resolve().parent
 
 models.Base.metadata.create_all(bind=engine)
 
@@ -47,9 +50,9 @@ def get_db():
     finally:
         db.close()
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 
 @app.get("/", response_class=HTMLResponse)
