@@ -9,8 +9,8 @@ class TaskStatus(str, Enum):
     """
     Represents the allowed statuses for a task.
     """
-    to_do = "To Do"
-    in_progress = "In Progress"
+    to_do = "ToDo"
+    in_progress = "Ongoing"
     done = "Done"
 
 class TaskBase(BaseModel):
