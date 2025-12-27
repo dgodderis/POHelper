@@ -97,7 +97,7 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
     uv pip install -r requirements.txt
     ```
 
-## Running the application
+## Running the application (Option A)
 
 1. **Start the server:**
 
@@ -109,15 +109,11 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
 
     Navigate to [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-## Desktop app (Option A)
+## Desktop app (Option B)
 
-1. **Run the desktop launcher:**
 
-    ```bash
-    python desktop.py
-    ```
 
-2. **Data location:**
+1. **Data location:**
 
     By default, the SQLite database is stored in the per-user app data directory.
     Override it with `POHELPER_DATABASE_URL` or set `POHELPER_DATA_DIR` to control
@@ -127,6 +123,12 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
 
     ```bash
     set POHELPER_DATABASE_URL=sqlite:///po_helper.db
+    ```
+
+2. **Run the desktop launcher:**
+
+    ```bash
+    python desktop.py
     ```
 
 ## Tests
