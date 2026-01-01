@@ -144,7 +144,9 @@ Allowed statuses are enforced in the API layer via `TaskStatus`:
 3. **Auto-start on Windows (optional):**
 
     This project includes a helper script that launches the desktop app using the
-    `uv` virtual environment at `.venv`.
+    `uv` virtual environment at `.venv`. The helper script sets
+    `POHELPER_DATABASE_URL` to store `po_helper.db` in the project root and uses
+    `pythonw.exe` so the console window closes immediately after launch.
 
     - Helper script: `scripts/pohelper-startup.cmd`
     - Startup folder location: run `shell:startup` from `Win + R`
